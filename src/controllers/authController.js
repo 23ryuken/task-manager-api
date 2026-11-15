@@ -18,6 +18,12 @@ export async function register(req, res) {
         const cleanEmail = email.trim().toLowerCase();
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (cleanEmail.length > 254) {
+            return res
+                .status(400)
+                .json({ message: "Please provide a valid email address" });
+        }
+
         if (!emailRegex.test(cleanEmail)) {
             return res
                 .status(400)
