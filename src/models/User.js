@@ -24,6 +24,19 @@ const userSchema = new mongoose.Schema({
 
 userSchema.pre("save", async function () {
     if (!this.isModified("password")) return;
+    if (bcrypt.truncates(this.password)) {
+        const error = new mongoose.Error.ValidationError(this);
+        error.addError(
+            "password",
+            new mongoose.Error.ValidatorError({
+                path: "password",
+                message: "Password must not exceed 72 bytes",
+                value: this.password
+            })
+        );
+        throw error;
+    }
+
     this.password = await bcrypt.hash(this.password, 10);
 });
 
