@@ -1,6 +1,11 @@
 import User from "../models/User.js"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
+import {
+    clearLoginFailures,
+    isLoginBlocked,
+    recordLoginFailure,
+} from "../middleware/loginFailureLimiter.js"
 
 export async function register(req, res) {
     try {
@@ -79,21 +84,30 @@ export async function login(req, res) {
                 .json({ message: "Please provide email and password" });
         }
 
+        if (isLoginBlocked(req.ip, cleanEmail)) {
+            return res
+                .status(429)
+                .json({ message: "Too many failed sign-in attempts. Please try again later." });
+        }
+
         const user = await User.findOne({ email: cleanEmail }).select("+password");
 
         if (!user) {
+            recordLoginFailure(req.ip, cleanEmail);
             return res.status(401).json({ message: "Invalid email or password" });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
+            recordLoginFailure(req.ip, cleanEmail);
             return res.status(401).json({ message: "Invalid email or password" });
         }
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_EXPIRES_IN,
+            expiresIn: process.env.JWT_EXPIRES_IN ?? "1h",
         });
 
+        clearLoginFailures(req.ip, cleanEmail);
         return res.status(200).json({
             token,
             user: { id: user._id, name: user.name, email: user.email },
