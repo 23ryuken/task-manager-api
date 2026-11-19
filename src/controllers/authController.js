@@ -117,3 +117,9 @@ export async function login(req, res) {
         return res.status(500).json({ message: "Something went wrong" });
     }
 }
+
+export async function getMe(req, res) {
+    return res.status(200).json({
+        user: { id: req.user._id, name: req.user.name, email: req.user.email },
+    });
+}
